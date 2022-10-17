@@ -64,13 +64,15 @@
 /*
     credentials.h needs to define the following
 
-    char * server_url="http://....";
-    char * wifi_ssid="blah....";
-    char * wifi_password="blah...";
-    char * server_key="blah....";
-    char * hostname="brendant";
+    const char * server_url="http://....";
+    const char * wifi_ssid="blah....";
+    const char * wifi_password="blah...";
+    const char * server_key="blah....";
+    const char * hostname="brendant";
 
 */
+#define PIN_USB_CONNECTED 9
+#define USB_CONNECTED true
 
 
 #define BOOT_PIXEL_COLOR 0x004000 // Dimish green
@@ -78,7 +80,7 @@
 #define SLEEP_AFTER_NO_WIFI_S 20 // Try again sooner if last time didn't connect
 #define WIFI_CONNECTED_FAST_PIXEL_COLOR BOOT_PIXEL_COLOR
 #define NORMAL_WAKE_SENT_OK_PIXEL_COLOR BOOT_PIXEL_COLOR
-#define NORMAL_SLEEP_S 30 // How long to sleep before sending again, will be 3600
+#define NORMAL_SLEEP_S 3600 // How long to sleep before sending again, will be 3600
 #define HELP_ON_WAY_COLOUR 0x0000FF
 #define WIFI_CONNECT_TIMEOUT 20 // Max each try spends trying to connect
 #define WIFI_CONNECTING_PIXEL_COLOUR 0x400040
@@ -110,14 +112,9 @@ char reset_reasons[]="" // Each line is 53 characters ;-)
 "01234567890123456789012345678901234567890123456789012";
 
 
-struct StatusMessage_t {
-  char reset_reason[51];
-  float battery_voltage;
-  bool is_charging;
-};
 
 char message_text_json[200];
-// e.g. {"reset_reason":"01234567890123456789012345678901234567890123456789","battery_voltage":3.215,"is_charging":false}
+// e.g. {"reset_reason":"01234567890123456789012345678901234567890123456789","battery_voltage":3.215,"usb_connected":false}
 
 
 bool send_status_message(char * json_message)
@@ -166,7 +163,12 @@ bool send_status_message(char * json_message)
 
 }
 
-void set_message_text(char * target,uint8_t reset_reason_code,float bat_volt,bool chrging)
+bool is_usb_connected()
+{
+  return (digitalRead(PIN_USB_CONNECTED)==USB_CONNECTED);
+}
+
+void set_message_text(char * target,uint8_t reset_reason_code,float bat_volt,bool usb_connected)
 {
   // Assembles into the target a json representation of the status after boot to be sent over wifi
   char * ptr=target;
@@ -177,8 +179,8 @@ void set_message_text(char * target,uint8_t reset_reason_code,float bat_volt,boo
   strcat(ptr,"\",\"battery_voltage\":");
   sprintf(temp,"%.3f",bat_volt);
   strcat(ptr,temp);
-  strcat(ptr,",\"is_charging\":");
-  strcat(ptr,chrging?"true":"false");
+  strcat(ptr,",\"usb_connected\":");
+  strcat(ptr,usb_connected?"true":"false");
   strcat(ptr,"}");
 
   Serial.printf("Assembled message for reset code %d of %d bytes:\n%s\n",reset_reason_code,strlen(ptr),ptr);
@@ -264,6 +266,11 @@ void setup()
   tp.DotStar_SetPixelColor(BOOT_PIXEL_COLOR);
   delay(500);
 
+  // Test pin 9
+
+
+
+
   Serial.println("booted");
 
   // Get reset reason
@@ -277,7 +284,7 @@ void setup()
     Serial.println("Reset due to alarm or other problem");
     reset_pressed=true;
   }
-  set_message_text(message_text_json,reset_reason,tp.GetBatteryVoltage(),tp.IsChargingBattery());
+  set_message_text(message_text_json,reset_reason,tp.GetBatteryVoltage(),is_usb_connected());
   Serial.printf(message_text_json);
 
   // Connect to wifi
